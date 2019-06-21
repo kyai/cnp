@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -38,9 +40,26 @@ func list() {
 		panic(err)
 	}
 
-	for k, v := range nodes {
-		fmt.Println(k, v)
+	output := ""
+	for _, node := range nodes {
+		color := 0
+		speed := node.Speed / 10
+		switch {
+		case speed >= 9:
+			color = 42
+		case speed >= 6:
+			color = 43
+		case speed >= 0:
+			color = 41
+		}
+
+		output += fmt.Sprintf("%s\t%s\t%v\n\n",
+			space(node.Ip, 15),
+			space(node.Port, 5),
+			fmt.Sprintf("\x1b[%dm%s\x1b[0m", color, space("", speed)),
+		)
 	}
+	fmt.Println(output)
 }
 
 const WEB_URL = "https://cn-proxy.com"
@@ -50,8 +69,8 @@ type Node struct {
 	Ip        string
 	Port      string
 	Location  string
-	Speed     string
-	LastCheck string
+	Speed     int
+	LastCheck time.Time
 }
 
 // Get list of proxy's node
@@ -90,8 +109,8 @@ func getList() (nodes []Node, err error) {
 		nodes[k].Ip = v["ip"]
 		nodes[k].Port = v["port"]
 		nodes[k].Location = v["location"]
-		nodes[k].Speed = v["speed"]
-		nodes[k].LastCheck = v["lastcheck"]
+		nodes[k].Speed, _ = strconv.Atoi(v["speed"])
+		nodes[k].LastCheck, _ = time.Parse("2006-01-02 15:04:05", v["lastcheck"])
 	}
 
 	return
@@ -104,4 +123,14 @@ func httpGet(url string) (res []byte, err error) {
 	}
 	defer resp.Body.Close()
 	return ioutil.ReadAll(resp.Body)
+}
+
+// possible methods
+
+func space(s string, n int) string {
+	n -= len(s)
+	for i := 0; i < n; i++ {
+		s += " "
+	}
+	return s
 }
